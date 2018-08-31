@@ -3,22 +3,46 @@
 #include <string.h>
 #include "mpi.h"
 
-#define MSG_SIZE 1024*2
+#define MSG_SIZE 1048579+1
 #define NODE_NUM 8
+#define ROUND 10
+
+double calculateAV(double* data, size)
+{
+    for(i=0; i<size; ++i)
+    {
+        sum+=data[i];
+    }
+    mean=sum/size;
+    return mean;
+}
+
+double calculateSD(double* data, size)
+{
+    float sum=0.0, mean, standardDeviation=0.0;
+    int i;
+    for(i=0; i<size; ++i)
+    {
+        sum+=data[i];
+    }
+    mean=sum/size;
+    for(i=0; i<size; ++i)
+        standardDeviation+=pow(data[i]-mean,2);
+    return sqrt(standardDeviation/size);
+}
 
 int main (int argc, char** argv)
 {
     int rank;	// rank of this process
     int num_p;	// number of processes
     char message[MSG_SIZE];	// 2M message buffer
-    int msg_len[] = {32, 64, 128, 256, 512, 1024, 2048};
+    int msg_len[] = {256, 1024, 4096, 16384, 65536, 262144, 1048579};
     MPI_Status status;	// the return status of reciever
     double* timer;
 
     // empty message, we only care about the latency
     memset(message, 0, MSG_SIZE);
-    timer = (double*)malloc(sizeof(double)*(sizeof(msg_len)/sizeof(msg_len[0])));
-
+    timer=(double*)malloc(sizeof(double)*ROUND*(sizeof(msg_len)/sizeof(msg_len[0])));
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -35,9 +59,7 @@ int main (int argc, char** argv)
     {
        for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
        {
-            clock_t start, end;
-            start=clock();
-            for(int ii=0; ii<10; ii++)
+            for(int ii=0; ii<ROUND; ii++)
             {
                 // try to recieve a message
                 MPI_Recv(message, msg_len[i], MPI_CHAR, rank+(NODE_NUM/2), 50, MPI_COMM_WORLD, &status);
@@ -45,26 +67,34 @@ int main (int argc, char** argv)
                 // send a ack signal to sender
                 MPI_Send("ack", 4, MPI_CHAR, rank+(NODE_NUM/2), 50, MPI_COMM_WORLD);
             }
-            end=clock();
-            timer[i]=((double)(end-start));
        }
     }
     else
     {
-       for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
-       {
-            for(int ii=0; ii<10; ii++)
+        struct timeval start, end;
+        for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
+        {
+            for(int ii=0; ii<ROUND; ii++)
             {
+                gettimeofday(&start, NULL);
                 // send a message
                 MPI_Send(message, msg_len[i], MPI_CHAR, rank-(NODE_NUM/2), 50, MPI_COMM_WORLD);
                 printf("[node %d] sent size %d message to %d\n", rank, msg_len[i], rank-(NODE_NUM/2));
                 // get the ack back
                 MPI_Recv(message, 4, MPI_CHAR, rank-(NODE_NUM/2), 50, MPI_COMM_WORLD, &status);
                 printf("[node %d] ack got\n", rank);
+                gettimeofday(&end, NULL);
+                timer[i*ROUND+ii]=(end.tv_sec-start.tv_sec) * 1000.0;
+                timer[i*ROUND+ii]+=(end.tv_usec-start.tv_usec) / 1000.0;
             }
-       }
+        }
     }
     MPI_Finalize();
     for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
-      print("[%d] %f", msg_len[i], timer[i]/CLOCKS_PER_SEC);
+        for(int ii=0; ii<ROUND; ii++)
+        {
+            double stddev=calculateSD(timer[i*ROUND]);
+            double stdave=calculateAV(timer[i*ROUND]);
+            print("[size %d]\t%lf\t%lf", stdave, stddev);
+        }
 }
