@@ -1,25 +1,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "mpi.h"
 
 #define MSG_SIZE 1048579+1
 #define NODE_NUM 8
 #define ROUND 10
 
-double calculateAV(double* data, size)
+double calculateAV(double* data, int size)
 {
-    for(i=0; i<size; ++i)
+    int sum=0;    
+    for(int i=0; i<size; ++i)
     {
         sum+=data[i];
     }
-    mean=sum/size;
+    int mean=sum/size;
     return mean;
 }
 
-double calculateSD(double* data, size)
+double calculateSD(double* data, int size)
 {
-    float sum=0.0, mean, standardDeviation=0.0;
+    double sum=0.0, mean, standardDeviation=0.0;
     int i;
     for(i=0; i<size; ++i)
     {
@@ -91,10 +93,9 @@ int main (int argc, char** argv)
     }
     MPI_Finalize();
     for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
-        for(int ii=0; ii<ROUND; ii++)
-        {
-            double stddev=calculateSD(timer[i*ROUND]);
-            double stdave=calculateAV(timer[i*ROUND]);
-            print("[size %d]\t%lf\t%lf", stdave, stddev);
-        }
+    {            
+        double stddev=calculateSD(timer+i*ROUND, ROUND);
+        double stdave=calculateAV(timer+i*ROUND, ROUND);
+        printf("[size %d]\t%lf\t%lf\n", stdave, stddev);
+    }
 }
