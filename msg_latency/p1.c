@@ -42,7 +42,6 @@ int main (int argc, char** argv)
 
     // empty message, we only care about the latency
     memset(message, 0, MSG_SIZE);
-    timer=(double*)malloc(sizeof(double)*ROUND*(sizeof(msg_len)/sizeof(msg_len[0])));
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -71,6 +70,7 @@ int main (int argc, char** argv)
     }
     else
     {
+        timer=(double*)malloc(sizeof(double)*ROUND*(sizeof(msg_len)/sizeof(msg_len[0])));
         struct timeval start, end;
         for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
         {
@@ -88,13 +88,15 @@ int main (int argc, char** argv)
                 timer[i*ROUND+ii]+=(end.tv_usec-start.tv_usec) / 1000.0;
             }
         }
-    }
-    MPI_Finalize();
-    for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
-        for(int ii=0; ii<ROUND; ii++)
+
+        // calculate the result
+        for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
         {
             double stddev=calculateSD(timer[i*ROUND]);
             double stdave=calculateAV(timer[i*ROUND]);
             print("[size %d]\t%lf\t%lf", stdave, stddev);
         }
+        free(timer);
+    }
+    MPI_Finalize();
 }
