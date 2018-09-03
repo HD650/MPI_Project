@@ -1,25 +1,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "mpi.h"
 
 #define MSG_SIZE 1048579+1
 #define NODE_NUM 8
 #define ROUND 10
 
-double calculateAV(double* data, size)
+double calculateAV(double* data, int size)
 {
-    for(i=0; i<size; ++i)
+    int sum=0;    
+    for(int i=0; i<size; ++i)
     {
         sum+=data[i];
     }
-    mean=sum/size;
+    int mean=sum/size;
     return mean;
 }
 
-double calculateSD(double* data, size)
+double calculateSD(double* data, int size)
 {
-    float sum=0.0, mean, standardDeviation=0.0;
+    double sum=0.0, mean, standardDeviation=0.0;
     int i;
     for(i=0; i<size; ++i)
     {
