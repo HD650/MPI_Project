@@ -10,12 +10,12 @@
 
 double calculateAV(double* data, int size)
 {
-    int sum=0;    
-    for(int i=0; i<size; ++i)
+    double sum=0;    
+    for(int i=0; i<size; i++)
     {
         sum+=data[i];
     }
-    int mean=sum/size;
+    double mean=sum/size;
     return mean;
 }
 
@@ -38,7 +38,7 @@ int main (int argc, char** argv)
     int rank;	// rank of this process
     int num_p;	// number of processes
     char message[MSG_SIZE];	// 2M message buffer
-    int msg_len[] = {256, 1024, 4096, 16384, 65536, 262144, 1048579};
+    int msg_len[] = {32, 256, 1024, 4096, 16384, 65536, 262144, 1048576};
     MPI_Status status;	// the return status of reciever
     double* timer;
 
@@ -64,7 +64,6 @@ int main (int argc, char** argv)
             {
                 // try to recieve a message
                 MPI_Recv(message, msg_len[i], MPI_CHAR, rank+(NODE_NUM/2), 50, MPI_COMM_WORLD, &status);
-                printf("[node %d] recieved message from %d\n", rank, rank+(NODE_NUM/2));
                 // send a ack signal to sender
                 MPI_Send("ack", 4, MPI_CHAR, rank+(NODE_NUM/2), 50, MPI_COMM_WORLD);
             }
@@ -73,6 +72,7 @@ int main (int argc, char** argv)
     else
     {
         timer=(double*)malloc(sizeof(double)*ROUND*(sizeof(msg_len)/sizeof(msg_len[0])));
+        memset(timer, 0, sizeof(double)*ROUND*(sizeof(msg_len)/sizeof(msg_len[0])));
         struct timeval start, end;
         for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
         {
@@ -81,10 +81,8 @@ int main (int argc, char** argv)
                 gettimeofday(&start, NULL);
                 // send a message
                 MPI_Send(message, msg_len[i], MPI_CHAR, rank-(NODE_NUM/2), 50, MPI_COMM_WORLD);
-                printf("[node %d] sent size %d message to %d\n", rank, msg_len[i], rank-(NODE_NUM/2));
                 // get the ack back
                 MPI_Recv(message, 4, MPI_CHAR, rank-(NODE_NUM/2), 50, MPI_COMM_WORLD, &status);
-                printf("[node %d] ack got\n", rank);
                 gettimeofday(&end, NULL);
                 timer[i*ROUND+ii]=(end.tv_sec-start.tv_sec) * 1000.0;
                 timer[i*ROUND+ii]+=(end.tv_usec-start.tv_usec) / 1000.0;
@@ -92,11 +90,22 @@ int main (int argc, char** argv)
         }
 
         // calculate the result
+        printf("[size]\t[std_aveage]\t[std_deviation]\n");
         for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
         {
-            double stddev=calculateSD(timer+i*ROUND, ROUND);
-            double stdave=calculateAV(timer+i*ROUND, ROUND);
-            printf("[size %d]\t%lf\t%lf", stdave, stddev);
+            double stddev, stdave;
+            // skip first message exchange
+            if(i==0)
+            {
+                stddev=calculateSD(timer+1+i*ROUND, ROUND-1);
+                stdave=calculateAV(timer+1+i*ROUND, ROUND-1);
+            }
+            else
+            {
+                stddev=calculateSD(timer+i*ROUND, ROUND);
+                stdave=calculateAV(timer+i*ROUND, ROUND);
+            }
+            printf("%d\t%lf\t%lf\n", msg_len[i], stdave, stddev);
         }
         free(timer);
     }
