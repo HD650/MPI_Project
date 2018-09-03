@@ -6,7 +6,7 @@
 
 #define MSG_SIZE 1048579+1
 #define NODE_NUM 8
-#define ROUND 10
+#define ROUND 1000
 
 double calculateAV(double* data, int size)
 {
@@ -38,7 +38,7 @@ int main (int argc, char** argv)
     int rank;	// rank of this process
     int num_p;	// number of processes
     char message[MSG_SIZE];	// 2M message buffer
-    int msg_len[] = {32, 256, 1024, 4096, 16384, 65536, 262144, 1048576};
+    int msg_len[] = {32, 256, 1024, 2048, 4096, 8192, 16384, 65536, 262144, 1048576};
     MPI_Status status;	// the return status of reciever
     double* timer;
 
