@@ -94,9 +94,9 @@ int main (int argc, char** argv)
         // calculate the result
         for(int i=0; i<(sizeof(msg_len)/sizeof(msg_len[0])); i++)
         {
-            double stddev=calculateSD(timer[i*ROUND], ROUND);
-            double stdave=calculateAV(timer[i*ROUND], ROUND);
-            print("[size %d]\t%lf\t%lf", stdave, stddev);
+            double stddev=calculateSD(timer+i*ROUND, ROUND);
+            double stdave=calculateAV(timer+i*ROUND, ROUND);
+            printf("[size %d]\t%lf\t%lf", stdave, stddev);
         }
         free(timer);
     }
