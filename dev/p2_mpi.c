@@ -33,9 +33,13 @@ int main(int argc, char* argv[]) {
 
     int grid_i, grid_n, block_n; // starting grid point index of this node, number of grid points in this node
     block_n = ceil((double)NGRID / (double)numproc);
+    block_n = block_n<1 ? 1:block_n;
     grid_i = rank * block_n;
     if (rank == numproc - 1)
-        grid_n = (NGRID % numproc == 0) ? block_n : NGRID - (numproc - 1) * block_n;
+    {
+        grid_n = NGRID - (numproc - 1) * block_n;
+        grid_n = grid_n<1 ? 1:grid_n;
+    }
     else
         grid_n = block_n;
 
