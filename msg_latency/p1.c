@@ -4,7 +4,7 @@
 #include <math.h>
 #include "mpi.h"
 
-#define MSG_SIZE 1048579+1
+#define MSG_SIZE 2097152+1
 #define NODE_NUM 8
 #define ROUND 1000
 
@@ -38,7 +38,7 @@ int main (int argc, char** argv)
     int rank;	// rank of this process
     int num_p;	// number of processes
     char message[MSG_SIZE];	// 2M message buffer
-    int msg_len[] = {32, 256, 1024, 2048, 4096, 8192, 16384, 65536, 262144, 1048576};
+    int msg_len[] = {32, 64, 256, 1024, 2048, 4096, 8192, 16384, 65536, 262144, 1048576, 2097152};
     MPI_Status status;	// the return status of reciever
     double* timer;
 
@@ -64,8 +64,6 @@ int main (int argc, char** argv)
             {
                 // try to recieve a message
                 MPI_Recv(message, msg_len[i], MPI_CHAR, rank+(NODE_NUM/2), 50, MPI_COMM_WORLD, &status);
-                // send a ack signal to sender
-                MPI_Send("ack", 4, MPI_CHAR, rank+(NODE_NUM/2), 50, MPI_COMM_WORLD);
             }
        }
     }
@@ -79,10 +77,8 @@ int main (int argc, char** argv)
             for(int ii=0; ii<ROUND; ii++)
             {
                 gettimeofday(&start, NULL);
-                // send a message
+                // send a messagek
                 MPI_Send(message, msg_len[i], MPI_CHAR, rank-(NODE_NUM/2), 50, MPI_COMM_WORLD);
-                // get the ack back
-                MPI_Recv(message, 4, MPI_CHAR, rank-(NODE_NUM/2), 50, MPI_COMM_WORLD, &status);
                 gettimeofday(&end, NULL);
                 timer[i*ROUND+ii]=(end.tv_sec-start.tv_sec) * 1000.0;
                 timer[i*ROUND+ii]+=(end.tv_usec-start.tv_usec) / 1000.0;
