@@ -38,7 +38,7 @@ int main (int argc, char** argv)
     int rank;	// rank of this process
     int num_p;	// number of processes
     char message[MSG_SIZE];	// 2M message buffer
-    int msg_len[] = {32, 64, 256, 1024, 2048, 4096, 8192, 16384, 65536, 262144, 1048576, 2097152};
+    int msg_len[] = {32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152};
     MPI_Status status;	// the return status of reciever
     double* timer;
 
