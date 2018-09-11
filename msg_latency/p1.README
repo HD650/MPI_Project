@@ -1,6 +1,10 @@
+How to run:
+use 'make' command to compile the program and then use 'prun ./p2' to run the program.
+
+Questions answer:
 The plot shows that the communication latency raises linearly after the message size reaches some certain size.
 
-It seems there is pair consistently slower than other pairs, but only occur when the message size is big.
+It seems there is pair consistently slower than other pairs, it may because of the network layout of nodes, nodes in this pair may in different location.
 
 These symptoms show that MPI will pad small package to some certain size, and some nodes are responsible for management work so it's slower than others. Also, the first communication is slower than the others, shows that MPI needs some overhead to establish a channel between nodes.
 
