@@ -93,10 +93,11 @@ public class TFIDF {
 		private Text word = new Text();
 
 		public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+			String doc_name = ((FileSplit)context.getInputSplit()).getPath().getName();
 			StringTokenizer itr = new StringTokenizer(value.toString());
 			while (itr.hasMoreTokens())
 			{
-				word.set(itr.nextToken());
+				word.set(itr.nextToken()+"@"+doc_name);
 				context.write(word, one);
 			}
 		}
@@ -195,7 +196,7 @@ public class TFIDF {
 			/************ YOUR CODE HERE ************/
 	 
 			//Put the output (key,value) pair into the tfidfMap instead of doing a context.write
-			tfidfMap.put(/*document@word*/, /*TFIDF*/);
+			//tfidfMap.put(/*document@word*/, /*TFIDF*/);
 		}
 		
 		// sorts the output (key,value) pairs that are contained in the tfidfMap
