@@ -232,7 +232,6 @@ public class TFIDF {
 		}
 		
 		public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
-			String[] value_item = token[0].split("=");
 			ArrayList<String> documents = new ArrayList<String>();
 			ArrayList<String> docsizes = new ArrayList<String>();
 			int numDocsWithWord = 0;
@@ -245,9 +244,9 @@ public class TFIDF {
 			}
 			for (int i=0; i<documents.size();i++)
 			{
-				String[] formulate = docsizes[i].split("/");
-				float result = ((float)Integer.parseInt(formulate[0]))/((float)Integer.parseInt(formulate[1]))*Math.log(numDocs/numDocsWithWord);
-				Text out_key = new Text(documents[i]+"@"+key);
+				String[] formulate = docsizes.get(i).split("/");
+				double result = ((double)Integer.parseInt(formulate[0]))/((double)Integer.parseInt(formulate[1]))*Math.log(((double)numDocs)/((double)numDocsWithWord));
+				Text out_key = new Text(documents.get(i)+"@"+key);
 				Text out_value = new Text(String.valueOf(result));
 				tfidfMap.put(out_key, out_value);
 			}
