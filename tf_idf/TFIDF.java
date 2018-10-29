@@ -60,7 +60,6 @@ public class TFIDF {
 		Job word_count = Job.getInstance(conf, "word_count");
 		word_count.setJarByClass(TFIDF.class);
 		word_count.setMapperClass(WCMapper.class);
-		word_count.setCombinerClass(WCReducer.class);
 		word_count.setReducerClass(WCReducer.class);
 		word_count.setOutputKeyClass(Text.class);
 		word_count.setOutputValueClass(IntWritable.class);
@@ -72,7 +71,6 @@ public class TFIDF {
 		Job doc_size = Job.getInstance(conf, "doc_size");
 		doc_size.setJarByClass(TFIDF.class);
 		doc_size.setMapperClass(DSMapper.class);
-		doc_size.setCombinerClass(DSReducer.class);
 		doc_size.setReducerClass(DSReducer.class);
 		doc_size.setOutputKeyClass(Text.class);
 		doc_size.setOutputValueClass(Text.class);
@@ -81,8 +79,6 @@ public class TFIDF {
 		doc_size.waitForCompletion(true);
 		
 		//Create and execute TFIDF job
-		
-			/************ YOUR CODE HERE ************/
 		
     }
 	
@@ -140,10 +136,14 @@ public class TFIDF {
 	 * Output: ( document , (word=wordCount) )
 	 */
 	public static class DSMapper extends Mapper<Object, Text, Text, Text> {
-		
+		private Text out_key = new Text(), out_value = new Text();	
 		public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
-			String [] token = (Text)key.split("@");
-			context.write(token[1], token[0]+"="+values);
+			
+			String[] token = ((Text)value).toString().split("\t");
+			String[] item = token[0].split("@");
+			out_key.set(item[1]);
+			out_value.set(item[0]+"="+token[1]);
+			context.write(out_key, out_value);
 		}
     }
 
@@ -156,18 +156,23 @@ public class TFIDF {
 	 * docSize = total number of words in the document
 	 */
 	public static class DSReducer extends Reducer<Text, Text, Text, Text> {
-		
+		private Text out_key = new Text(), out_value = new Text();	
 		public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
 			int sum = 0;
+			ArrayList<String> words = new ArrayList<String>();
+			ArrayList<String> counts = new ArrayList<String>();
 			for (Text val : values)
 			{
-				String [] token = (Text)val.split("=");
+				String [] token = ((Text)val).toString().split("=");
 				sum += Integer.parseInt(token[1]);
+				words.add(token[0]);
+				counts.add(token[1]);
 			}
-			for (Text val : values)
+			for (int i=0; i<words.size();i++)
 			{
-				String [] token = (Text)val.split("=");
-				context.write(token[0]+"@"+key, token[2]+"/"+(Text)sum);
+				out_key.set(words.get(i)+"@"+key);
+				out_value.set(counts.get(i)+"/"+String.valueOf(sum));
+				context.write(out_key, out_value);
 			}
 		}
     }
