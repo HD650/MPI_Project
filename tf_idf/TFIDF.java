@@ -106,8 +106,10 @@ public class TFIDF {
 		private Text word = new Text();
 
 		public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+			// get doc name
 			String doc_name = ((FileSplit)context.getInputSplit()).getPath().getName();
 			StringTokenizer itr = new StringTokenizer(value.toString());
+			// for every word in doc, output a key-value pair
 			while (itr.hasMoreTokens())
 			{
 				word.set(itr.nextToken()+"@"+doc_name);
@@ -129,6 +131,7 @@ public class TFIDF {
 		private IntWritable result = new IntWritable();
 		public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
 			int sum = 0;
+			// count the same word
 			for (IntWritable val : values)
 			{
 				sum += val.get();
@@ -147,9 +150,9 @@ public class TFIDF {
 	public static class DSMapper extends Mapper<Object, Text, Text, Text> {
 		private Text out_key = new Text(), out_value = new Text();	
 		public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
-			
 			String[] token = ((Text)value).toString().split("\t");
 			String[] item = token[0].split("@");
+			// rearrange the key-value pair
 			out_key.set(item[1]);
 			out_value.set(item[0]+"="+token[1]);
 			context.write(out_key, out_value);
@@ -170,6 +173,7 @@ public class TFIDF {
 			int sum = 0;
 			ArrayList<String> words = new ArrayList<String>();
 			ArrayList<String> counts = new ArrayList<String>();
+			// get the total number of word for every doc
 			for (Text val : values)
 			{
 				String [] token = ((Text)val).toString().split("=");
@@ -177,6 +181,7 @@ public class TFIDF {
 				words.add(token[0]);
 				counts.add(token[1]);
 			}
+			// calculate wordCount/docSize
 			for (int i=0; i<words.size();i++)
 			{
 				out_key.set(words.get(i)+"@"+key);
@@ -195,9 +200,9 @@ public class TFIDF {
 	public static class TFIDFMapper extends Mapper<Object, Text, Text, Text> {
 		private Text out_key = new Text(), out_value = new Text();	
 		public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
-			
 			String[] token = ((Text)value).toString().split("\t");
 			String[] key_item = token[0].split("@");
+			// rearranges key-value pair
 			out_key.set(key_item[0]);
 			out_value.set(key_item[1]+"="+token[1]);
 			context.write(out_key, out_value);
@@ -235,6 +240,7 @@ public class TFIDF {
 			ArrayList<String> documents = new ArrayList<String>();
 			ArrayList<String> docsizes = new ArrayList<String>();
 			int numDocsWithWord = 0;
+			// count the number of doc with this specific word
 			for (Text val : values)
 			{
 				String [] token = ((Text)val).toString().split("=");
@@ -242,6 +248,7 @@ public class TFIDF {
 				documents.add(token[0]);
 				docsizes.add(token[1]);
 			}
+			// calculate tfidf of this word
 			for (int i=0; i<documents.size();i++)
 			{
 				String[] formulate = docsizes.get(i).split("/");
@@ -250,8 +257,6 @@ public class TFIDF {
 				Text out_value = new Text(String.valueOf(result));
 				tfidfMap.put(out_key, out_value);
 			}
-			//Put the output (key,value) pair into the tfidfMap instead of doing a context.write
-			//tfidfMap.put(/*document@word*/, /*TFIDF*/);
 		}
 		
 		// sorts the output (key,value) pairs that are contained in the tfidfMap
