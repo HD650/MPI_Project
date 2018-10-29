@@ -1,5 +1,5 @@
 How to run:
-use 'make' command to compile the program and then use 'prun ./p2' to run the program.
+use './make.sh' command to compile the program and then use 'prun ./p2' to run the program, the program will only run with 8 processors.
 
 Questions answer:
 The plot shows that the communication latency raises linearly after the message size reaches some certain size.
