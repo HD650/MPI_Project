@@ -69,8 +69,16 @@ public class TFIDF {
 		word_count.waitForCompletion(true);
 
 		// Create and execute Document Size job
-		
-			/************ YOUR CODE HERE ************/
+		Job doc_size = Job.getInstance(conf, "doc_size");
+		doc_size.setJarByClass(TFIDF.class);
+		doc_size.setMapperClass(DSMapper.class);
+		doc_size.setCombinerClass(DSReducer.class);
+		doc_size.setReducerClass(DSReducer.class);
+		doc_size.setOutputKeyClass(Text.class);
+		doc_size.setOutputValueClass(Text.class);
+		FileInputFormat.addInputPath(doc_size, dsInputPath);
+		FileOutputFormat.setOutputPath(doc_size, dsOutputPath);
+		doc_size.waitForCompletion(true);
 		
 		//Create and execute TFIDF job
 		
@@ -101,7 +109,6 @@ public class TFIDF {
 				context.write(word, one);
 			}
 		}
-
     }
 
     /*
@@ -134,8 +141,10 @@ public class TFIDF {
 	 */
 	public static class DSMapper extends Mapper<Object, Text, Text, Text> {
 		
-		/************ YOUR CODE HERE ************/
-		
+		public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+			String [] token = (Text)key.split("@");
+			context.write(token[1], token[0]+"="+values);
+		}
     }
 
     /*
@@ -148,8 +157,19 @@ public class TFIDF {
 	 */
 	public static class DSReducer extends Reducer<Text, Text, Text, Text> {
 		
-		/************ YOUR CODE HERE ************/
-		
+		public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+			int sum = 0;
+			for (Text val : values)
+			{
+				String [] token = (Text)val.split("=");
+				sum += Integer.parseInt(token[1]);
+			}
+			for (Text val : values)
+			{
+				String [] token = (Text)val.split("=");
+				context.write(token[0]+"@"+key, token[2]+"/"+(Text)sum);
+			}
+		}
     }
 	
 	/*
