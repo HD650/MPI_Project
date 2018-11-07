@@ -92,14 +92,25 @@ public class TFIDF {
 		 * Map:    ( (word@document) , (1/docSize) )
 		 * Reduce: ( (word@document) , (wordCount/docSize) )
 		 */
-		JavaPairRDD<String,String> tfRDD = wordsRDD./**MAP**/(
-			
-			/************ YOUR CODE HERE ************/
-			
-		)./**REDUCE**/(
-			
-			/************ YOUR CODE HERE ************/
-			
+		JavaPairRDD<String,String> tfRDD = wordsRDD.map(
+			new Function<Tuple2<String,Integer>, Tuple2<String,String>>() 
+			{
+  				public Tuple2<String,Integer> call(Tuple2<String,Integer> s) 
+  				{
+  					return new Tuple2(s._1,"1/"+Integer.toString(s._2));
+  				}
+			}
+		).reduceByKey(
+			new Function2<String, String, String>() 
+			{
+  				public String call(String v1, String v2) 
+  				{
+  					String[] v1_words = v1.split("/");
+  					String[] v2_words = v2.split("/");
+  					int res = Integer.parseInt(v1_words[0])+Integer.parseInt(v2_words[0]);
+					return Integer.toString(res)+"/"+v1_words[1];
+  				}
+			}
 		);
 		
 		//Print tfRDD contents
@@ -121,18 +132,42 @@ public class TFIDF {
 		 * Reduce: ( word , (numDocsWithWord/document1,document2...) )
 		 * Map:    ( (word@document) , (numDocs/numDocsWithWord) )
 		 */
-		JavaPairRDD<String,String> idfRDD = tfRDD./**MAP**/(
-			
-			/************ YOUR CODE HERE ************/
-			
-		)./**REDUCE**/(
-			
-			/************ YOUR CODE HERE ************/
-			
-		)./**MAP**/(
-			
-			/************ YOUR CODE HERE ************/
-			
+		JavaPairRDD<String,String> idfRDD = tfRDD.map(
+			new Function<Tuple2<String,String>, Tuple2<String,String>>() 
+			{
+  				public Tuple2<String,Integer> call(Tuple2<String,Integer> s) 
+  				{
+  					String[] words = s._1.split("@");
+  					return new Tuple2(words[0],"1/"+words[1]);
+  				}
+			}
+		).reduceByKey(
+			new Function2<String, String, String>() 
+			{
+  				public String call(String v1, String v2) 
+  				{
+  					String[] v1_words = v1.split("/");
+  					String[] v2_words = v2.split("/");
+  					int res = Integer.parseInt(v1_words[0])+Integer.parseInt(v2_words[0]);
+					return Integer.toString(res)+"/"+v1_words[1]+","+v2_words[1];
+  				}
+			}
+		).flatMap(
+			new Function<Tuple2<String,String>, Tuple2<String,String>>() 
+			{
+  				public Iterable<Tuple2<String,String>> call(Tuple2<String,String> s) 
+  				{
+  					String[] words = s._2.split("/");
+  					String[] docs = words[1].split(",");
+
+  					ArrayList ret = new ArrayList();
+  					for(String doc : docs)
+  					{
+  						ret.add(new Tuple2<String,String>(s._1+"@"+doc,Long.toString(numDocs)+"/"+words[0]))
+  					}
+  					return ret;
+  				}
+			}
 		);
 		
 		//Print idfRDD contents
@@ -174,20 +209,35 @@ public class TFIDF {
 			}
 		);
 		
-		JavaPairRDD<String,Double> idfFinalRDD = idfRDD./**MAP**/(
-			
-			/************ YOUR CODE HERE ************/
-			
+		JavaPairRDD<String,Double> idfFinalRDD = idfRDD.map(
+			new Function<Tuple2<String,String>, Tuple2<String,Double>>() 
+			{
+  				public Tuple2<String,Double> call(Tuple2<String,String> s) 
+  				{
+  					String[] words = s._2.split("/");
+  					double IDF = Math.log(Double.parseDouble(words[0])/Double.parseDouble(words[1]));
+  					return new Tuple2<String,Double>(s._1,IDF);
+  				}
+			}
 		);
 		
-		JavaPairRDD<String,Double> tfidfRDD = tfFinalRDD.union(idfFinalRDD)./**REDUCE**/(
-			
-			/************ YOUR CODE HERE ************/
-			
-		)./**MAP**/(
-			
-			/************ YOUR CODE HERE ************/
-			
+		JavaPairRDD<String,Double> tfidfRDD = tfFinalRDD.union(idfFinalRDD).reduceByKey(
+			new Function2<Double, Double, Double>() 
+			{
+  				public String call(Double v1, Double v2) 
+  				{
+					return v1*v2;
+  				}
+			}
+		).map(
+			new Function<Tuple2<String,Double>, Tuple2<String,Double>>() 
+			{
+  				public Tuple2<String,Double> call(Tuple2<String,Double> s) 
+  				{
+  					String[] words = s._1.split("@");
+  					return new Tuple2<String,Double>(words[1]+"@"+words[0],s._2);
+  				}
+			}
 		);
 		
 		//Print tfidfRDD contents in sorted order
