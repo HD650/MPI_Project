@@ -280,8 +280,8 @@ int main(int argc , char *argv[]){
 			offset+=recvcounts[i-1];
 		for(i=0; i<TF_idx; i++)
 		{
-			//MPI_File_write_at(output, offset, (void*) strings[i], strlen(strings[i]), MPI_CHAR, &status);
-			MPI_File_write_at_all(output, offset, (void*) strings[i], strlen(strings[i]), MPI_CHAR, &status);
+			MPI_File_write_at(output, offset, (void*) strings[i], strlen(strings[i]), MPI_CHAR, &status);
+			//MPI_File_write_at_all(output, offset, (void*) strings[i], strlen(strings[i]), MPI_CHAR, &status);
 			offset+=strlen(strings[i]);
 		}
 		MPI_File_close(&output);
