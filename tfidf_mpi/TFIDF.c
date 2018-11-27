@@ -10,7 +10,7 @@
 #define MAX_FILEPATH_LENGTH 16
 #define MAX_WORD_LENGTH 16
 #define MAX_DOCUMENT_NAME_LENGTH 8
-#define MAX_STRING_LENGTH 64
+#define MAX_STRING_LENGTH 65
 
 typedef char word_document_str[MAX_STRING_LENGTH];
 
@@ -255,23 +255,35 @@ int main(int argc , char *argv[]){
 		printf("%s@%s\t%d/%d\n", TFIDF[j].word, TFIDF[j].document, TFIDF[j].numDocs, TFIDF[j].numDocsWithWord);
 		
 	// Calculates TFIDF value and puts: "document@word\tTFIDF" into strings array
+	int offset = 0;
 	for(j=0; j<TF_idx; j++) {
 		double TF = 1.0 * TFIDF[j].wordCount / TFIDF[j].docSize;
 		double IDF = log(1.0 * TFIDF[j].numDocs / TFIDF[j].numDocsWithWord);
 		double TFIDF_value = TF * IDF;
-		sprintf(strings[j], "%s@%s\t%.16f", TFIDF[j].document, TFIDF[j].word, TFIDF_value);
+		sprintf(strings[j], "%s@%s\t%.16f\n", TFIDF[j].document, TFIDF[j].word, TFIDF_value);
+		// count the total string length of this node
+		offset+=strlen(strings[j]);
 	}
 	
 	// Sort strings and print to file
 	qsort(strings, TF_idx, sizeof(char)*MAX_STRING_LENGTH, myCompare);
-	FILE* fp = fopen("output.txt", "w");
-	if(fp == NULL){
-		printf("Error Opening File: output.txt\n");
-		exit(0);
-	}
+
+	// tell every one how long this node will write to the file
+	MPI_Allgather((void*)&offset, 1, MPI_INT, (void*)recvcounts, 1, MPI_INT, except_root);
+	MPI_FILE file;
+	MPI_Status status;
+	MPI_FILE_OPEN(except_root, "output.txt", MPI_MODE_RDWR, MPI_INFO_NULL, &file);
+	// calculate the write position of this node
+	offset = 0;
+	for(int i=1; i<rank;i++)
+		offset+=recvcounts[i];
+
 	for(i=0; i<TF_idx; i++)
-		fprintf(fp, "%s\n", strings[i]);
-	fclose(fp);
+	{
+		MPI_File_write_at(file, offset, (void*) strings[i], strlen(strings[i]), MPI_CHAR, &status);
+		offset+=strlen(strings[i]);
+	}
+	MPI_File_close(&file);
 	
 	return 0;	
 }
