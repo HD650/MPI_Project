@@ -87,8 +87,19 @@ int main(int argc , char *argv[]){
 	// tell very nodes their work responsibility
 	MPI_Bcast((void*)&documents_pre_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast((void*)&extra_work_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	printf("num_doc:%d, extra:%d, doc_pre:%di\n", numDocs, extra_work_node, documents_pre_node);
 	
+	
+
+	MPI_Datatype uw_type;
+	int blocklens[] = {32,1,1};
+	MPI_Aint indices[3];
+	indices[0] = (MPI_Aint)offsetof(struct u_w, word);
+    indices[1] = (MPI_Aint)offsetof(struct u_w, numDocsWithWord);
+    indices[2] = (MPI_Aint)offsetof(struct u_w, currDoc);
+    MPI_Datatype old_types[] = {MPI_CHAR,MPI_INT,MPI_INT};
+    MPI_Type_struct(3,blocklens,indices,old_types,&uw_type);
+    MPI_Type_commit(&uw_type);
+
 	MPI_Comm except_root;
 	if(rank == 0)
 	{
@@ -195,7 +206,7 @@ int main(int argc , char *argv[]){
 			displs[i] = displs[i-1] + recvcounts[i-1];
 		}
 		all_un_data = (u_w*) malloc(totlen*sizeof(u_w));
-		MPI_Allgatherv((void*)unique_words, uw_idx, MPI_XXXX, (void*)all_un_data, recvcounts, displs, MPI_XXXX, except_root);
+		MPI_Allgatherv((void*)unique_words, uw_idx, uw_type, (void*)all_un_data, recvcounts, displs, uw_type, except_root);
 
 		uw_idx = 0;
 		for(i=0;i<totlen;i++)
