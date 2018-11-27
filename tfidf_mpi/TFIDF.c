@@ -3,6 +3,7 @@
 #include<stdlib.h>
 #include<dirent.h>
 #include<math.h>
+#include "mpi.h"
 
 #define MAX_WORDS_IN_CORPUS 32
 #define MAX_FILEPATH_LENGTH 16
@@ -33,6 +34,16 @@ static int myCompare (const void * a, const void * b)
 }
 
 int main(int argc , char *argv[]){
+
+	// variables for openmpi program
+	int rank;
+    int numproc;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numproc);
+
+
 	DIR* files;
 	struct dirent* file;
 	int i,j;
@@ -50,81 +61,115 @@ int main(int argc , char *argv[]){
 	// Will hold the final strings that will be printed out
 	word_document_str strings[MAX_WORDS_IN_CORPUS];
 	
-	
-	//Count numDocs
-	if((files = opendir("input")) == NULL){
-		printf("Directory failed to open\n");
-		exit(1);
-	}
-	while((file = readdir(files))!= NULL){
-		// On linux/Unix we don't want current and parent directories
-		if(!strcmp(file->d_name, "."))	 continue;
-		if(!strcmp(file->d_name, "..")) continue;
-		numDocs++;
-	}
-	
-	// Loop through each document and gather TFIDF variables for each word
-	for(i=1; i<=numDocs; i++){
-		sprintf(document, "doc%d", i);
-		sprintf(filename,"input/%s",document);
-		FILE* fp = fopen(filename, "r");
-		if(fp == NULL){
-			printf("Error Opening File: %s\n", filename);
-			exit(0);
+	int documents_pre_node = -1;
+	int extra_work_node = -1;
+
+	// only the master node scan the directory
+	if(rank==0)
+	{
+		//Count numDocs
+		if((files = opendir("input")) == NULL){
+			printf("Directory failed to open\n");
+			exit(1);
 		}
-		
-		// Get the document size
-		docSize = 0;
-		while((fscanf(fp,"%s",word))!= EOF)
-			docSize++;
-		
-		// For each word in the document
-		fseek(fp, 0, SEEK_SET);
-		while((fscanf(fp,"%s",word))!= EOF){
-			contains = 0;
-			
-			// If TFIDF array already contains the word@document, just increment wordCount and break
-			for(j=0; j<TF_idx; j++) {
-				if(!strcmp(TFIDF[j].word, word) && !strcmp(TFIDF[j].document, document)){
-					contains = 1;
-					TFIDF[j].wordCount++;
-					break;
-				}
+		while((file = readdir(files))!= NULL){
+			// On linux/Unix we don't want current and parent directories
+			if(!strcmp(file->d_name, "."))	 continue;
+			if(!strcmp(file->d_name, "..")) continue;
+			numDocs++;
+		}
+
+		// how many documents one node should work on
+		int documents_pre_node = numDocs / numproc;
+		// how many nodes should do an extra work (1 more document)
+		int extra_work_node = numDocs % numproc;
+	}
+
+	// tell very nodes their work responsibility
+	MPI_Bcast((void*)&documents_pre_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast((void*)&extra_work_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	
+	// master doesn't work on real documents
+	if(rank!=0)
+	{
+		int start, end;
+		if(rank>extra_work_node)
+		{
+			start = extra_work_node+rank*documents_pre_node;
+			end = start + documents_pre_node;
+		}
+		else
+		{
+			start = rank*(documents_pre_node+1);
+			end = start + documents_pre_node + 1;
+		}
+		printf("[%d]starts at %d\n", rank, start);
+
+
+		// Loop through each document and gather TFIDF variables for each word
+		for(i=start; i<=end; i++){
+			sprintf(document, "doc%d", i);
+			sprintf(filename,"input/%s",document);
+			FILE* fp = fopen(filename, "r");
+			if(fp == NULL){
+				printf("Error Opening File: %s\n", filename);
+				exit(0);
 			}
 			
-			//If TFIDF array does not contain it, make a new one with wordCount=1
-			if(!contains) {
-				strcpy(TFIDF[TF_idx].word, word);
-				strcpy(TFIDF[TF_idx].document, document);
-				TFIDF[TF_idx].wordCount = 1;
-				TFIDF[TF_idx].docSize = docSize;
-				TFIDF[TF_idx].numDocs = numDocs;
-				TF_idx++;
-			}
+			// Get the document size
+			docSize = 0;
+			while((fscanf(fp,"%s",word))!= EOF)
+				docSize++;
 			
-			contains = 0;
-			// If unique_words array already contains the word, just increment numDocsWithWord
-			for(j=0; j<uw_idx; j++) {
-				if(!strcmp(unique_words[j].word, word)){
-					contains = 1;
-					if(unique_words[j].currDoc != i) {
-						unique_words[j].numDocsWithWord++;
-						unique_words[j].currDoc = i;
+			// For each word in the document
+			fseek(fp, 0, SEEK_SET);
+			while((fscanf(fp,"%s",word))!= EOF){
+				contains = 0;
+				
+				// If TFIDF array already contains the word@document, just increment wordCount and break
+				for(j=0; j<TF_idx; j++) {
+					if(!strcmp(TFIDF[j].word, word) && !strcmp(TFIDF[j].document, document)){
+						contains = 1;
+						TFIDF[j].wordCount++;
+						break;
 					}
-					break;
+				}
+				
+				//If TFIDF array does not contain it, make a new one with wordCount=1
+				if(!contains) {
+					strcpy(TFIDF[TF_idx].word, word);
+					strcpy(TFIDF[TF_idx].document, document);
+					TFIDF[TF_idx].wordCount = 1;
+					TFIDF[TF_idx].docSize = docSize;
+					TFIDF[TF_idx].numDocs = numDocs;
+					TF_idx++;
+				}
+				
+				contains = 0;
+				// If unique_words array already contains the word, just increment numDocsWithWord
+				for(j=0; j<uw_idx; j++) {
+					if(!strcmp(unique_words[j].word, word)){
+						contains = 1;
+						if(unique_words[j].currDoc != i) {
+							unique_words[j].numDocsWithWord++;
+							unique_words[j].currDoc = i;
+						}
+						break;
+					}
+				}
+				
+				// If unique_words array does not contain it, make a new one with numDocsWithWord=1 
+				if(!contains) {
+					strcpy(unique_words[uw_idx].word, word);
+					unique_words[uw_idx].numDocsWithWord = 1;
+					unique_words[uw_idx].currDoc = i;
+					uw_idx++;
 				}
 			}
-			
-			// If unique_words array does not contain it, make a new one with numDocsWithWord=1 
-			if(!contains) {
-				strcpy(unique_words[uw_idx].word, word);
-				unique_words[uw_idx].numDocsWithWord = 1;
-				unique_words[uw_idx].currDoc = i;
-				uw_idx++;
-			}
+			fclose(fp);
 		}
-		fclose(fp);
 	}
+	
 	
 	// Print TF job similar to HW4/HW5 (For debugging purposes)
 	printf("-------------TF Job-------------\n");
