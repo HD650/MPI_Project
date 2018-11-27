@@ -3,6 +3,7 @@
 #include<stdlib.h>
 #include<dirent.h>
 #include<math.h>
+#include<stddef.h>
 #include "mpi.h"
 
 #define MAX_WORDS_IN_CORPUS 32
@@ -87,15 +88,15 @@ int main(int argc , char *argv[]){
 	// tell very nodes their work responsibility
 	MPI_Bcast((void*)&documents_pre_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast((void*)&extra_work_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	
+	MPI_Bcast((void*)&numDocs, 1, MPI_INT, 0, MPI_COMM_WORLD);	
 	
 
 	MPI_Datatype uw_type;
 	int blocklens[] = {32,1,1};
 	MPI_Aint indices[3];
-	indices[0] = (MPI_Aint)offsetof(struct u_w, word);
-    indices[1] = (MPI_Aint)offsetof(struct u_w, numDocsWithWord);
-    indices[2] = (MPI_Aint)offsetof(struct u_w, currDoc);
+	indices[0] = (MPI_Aint)offsetof(u_w, word);
+    indices[1] = (MPI_Aint)offsetof(u_w, numDocsWithWord);
+    indices[2] = (MPI_Aint)offsetof(u_w, currDoc);
     MPI_Datatype old_types[] = {MPI_CHAR,MPI_INT,MPI_INT};
     MPI_Type_struct(3,blocklens,indices,old_types,&uw_type);
     MPI_Type_commit(&uw_type);
