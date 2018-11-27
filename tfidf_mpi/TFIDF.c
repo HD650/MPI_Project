@@ -88,9 +88,19 @@ int main(int argc , char *argv[]){
 	MPI_Bcast((void*)&documents_pre_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast((void*)&extra_work_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	printf("num_doc:%d, extra:%d, doc_pre:%di\n", numDocs, extra_work_node, documents_pre_node);
-	// master doesn't work on real documents
-	if(rank!=0)
+	
+	MPI_Comm except_root;
+	if(rank == 0)
 	{
+		// root node will not be included in new group
+		MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, rank, &except_root);
+	}
+	// master doesn't work on real documents
+	else
+	{
+		// all nodes except root will be included in new group
+		MPI_Comm_split(MPI_COMM_WORLD, 1, rank, &except_root);
+		// calculate the start and end point of this node
 		int start, end;
 		if(rank>extra_work_node)
 		{
@@ -167,6 +177,48 @@ int main(int argc , char *argv[]){
 			}
 			fclose(fp);
 		}
+
+		// gather uw_idx to all nodes
+		int* recvcounts = NULL;
+		recvcounts = (int*)malloc(numproc*sizeof(int));
+		MPI_Allgather((void*)&uw_idx, 1, MPI_INT, (void*)recvcounts, 1, MPI_INT, except_root);
+		// according to uw_idx from all nodes, gather unique_words data to all nodes
+		u_w* all_un_data = NULL;
+		int* displs = NULL;
+		int totlen = 0;
+		displs = (int*)malloc(numproc*sizeof(int));
+		displs[0] = 0;
+		totlen += recvcounts[0];
+		for(int i=1; i<(numproc-1); i++)
+		{
+			totlen += recvcounts[i];
+			displs[i] = displs[i-1] + recvcounts[i-1];
+		}
+		all_un_data = (u_w*) malloc(totlen*sizeof(u_w));
+		MPI_Allgatherv((void*)unique_words, uw_idx, MPI_XXXX, (void*)all_un_data, recvcounts, displs, MPI_XXXX, except_root);
+
+		uw_idx = 0;
+		for(i=0;i<totlen;i++)
+		{
+			contains = 0;
+			for(j=0; j<uw_idx; j++) {
+				if(!strcmp(unique_words[j].word, all_un_data[i].word)){
+					contains = 1;
+					unique_words[j].numDocsWithWord++;
+					break;
+				}
+			}
+				
+				// If unique_words array does not contain it, make a new one with numDocsWithWord=1 
+			if(!contains) {
+				strcpy(unique_words[uw_idx].word, all_un_data[i].word);
+				unique_words[uw_idx].numDocsWithWord = 1;
+				uw_idx++;
+			}
+		}
+		free(recvcounts);
+		free(displs);
+		free(all_un_data);
 	}
 	
 	
