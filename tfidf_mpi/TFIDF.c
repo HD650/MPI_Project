@@ -80,30 +80,29 @@ int main(int argc , char *argv[]){
 		}
 
 		// how many documents one node should work on
-		int documents_pre_node = numDocs / numproc;
+		documents_pre_node = numDocs / (numproc-1);
 		// how many nodes should do an extra work (1 more document)
-		int extra_work_node = numDocs % numproc;
+		extra_work_node = numDocs % (numproc-1);
 	}
-
 	// tell very nodes their work responsibility
 	MPI_Bcast((void*)&documents_pre_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast((void*)&extra_work_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	
+	printf("num_doc:%d, extra:%d, doc_pre:%di\n", numDocs, extra_work_node, documents_pre_node);
 	// master doesn't work on real documents
 	if(rank!=0)
 	{
 		int start, end;
 		if(rank>extra_work_node)
 		{
-			start = extra_work_node+rank*documents_pre_node;
-			end = start + documents_pre_node;
+			start = 1 + extra_work_node+(rank-1)*documents_pre_node;
+			end = start + documents_pre_node - 1;
 		}
 		else
 		{
-			start = rank*(documents_pre_node+1);
-			end = start + documents_pre_node + 1;
+			start = 1 + (rank-1)*(documents_pre_node+1);
+			end = start + documents_pre_node;
 		}
-		printf("[%d]starts at %d\n", rank, start);
+		printf("[%d]starts at %d, ends at %d\n", rank, start, end);
 
 
 		// Loop through each document and gather TFIDF variables for each word
