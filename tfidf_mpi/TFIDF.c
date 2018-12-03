@@ -289,5 +289,6 @@ int main(int argc , char *argv[]){
 	}
 	// all node waits here and finish at same time
 	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Finalize();
 	return 0;	
 }
